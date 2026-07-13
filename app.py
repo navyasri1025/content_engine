@@ -510,24 +510,18 @@ div[data-testid="column"] .stButton > button:hover {{
         # Hero image
         image_url = results.get("image_url")
         if image_url:
-            st.markdown(f"""<div class="card">
-                <div class="card-title">🎨 Campaign Hero Image</div>
-            </div>""", unsafe_allow_html=True)
+            st.markdown("### Campaign Hero Image")
             st.image(image_url, use_container_width=True)
         else:
-            st.markdown(f"""<div class="card">
-                <div class="card-title">🎨 Campaign Hero Image</div>
-                <div class="card-content" style="color:#6e7681;">Image generation failed. Check terminal logs for the exact error.</div>
-            </div>""", unsafe_allow_html=True)
+            st.markdown("### Campaign Hero Image")
+            st.markdown('<div class="card"><div class="card-content" style="color:#6e7681;">Image generation failed. Check terminal logs for the exact error.</div></div>', unsafe_allow_html=True)
 
         # Promotional video
         video_path  = results.get("video_path")
         video_error = results.get("video_error")
 
         if video_path:
-            st.markdown(f"""<div class="card">
-                <div class="card-title">🎬 Promotional Video</div>
-            </div>""", unsafe_allow_html=True)
+            st.markdown("### Promotional Video")
             if video_error:
                 escaped_warn = video_error.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 st.markdown(f'<div class="card-warn">⚠️ {escaped_warn}</div>', unsafe_allow_html=True)
@@ -549,11 +543,10 @@ div[data-testid="column"] .stButton > button:hover {{
             except Exception:
                 pass
         else:
-            error_html = ""
+            st.markdown("### Promotional Video")
             if video_error:
                 escaped = video_error.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                error_html = f'<div class="card-error"><strong>Error:</strong> {escaped}</div>'
-            st.markdown(f"""<div class="card"><div class="card-title">🎬 Promotional Video</div>{error_html}</div>""", unsafe_allow_html=True)
+                st.markdown(f'<div class="card-error"><strong>Error:</strong> {escaped}</div>', unsafe_allow_html=True)
 
 # ── Empty state ───────────────────────────────────────────────────────────────
 elif not st.session_state.generated and not st.session_state.running:
