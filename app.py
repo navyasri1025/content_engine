@@ -368,27 +368,21 @@ if st.session_state.generated and st.session_state.results:
         tagline = results.get("tagline", "")
         if tagline:
             st.markdown(f"""<div class="card">
-                <span class="technique-badge badge-blue">{results.get('tagline_technique', 'Few-Shot')}</span>
-                <div class="card-title">🏷️ Campaign Tagline</div>
+                <div class="card-title">💡 Campaign Tagline</div>
                 <div class="card-content" style="font-size:1.2rem;font-weight:600;font-style:italic;">"{tagline}"</div>
             </div>""", unsafe_allow_html=True)
 
         blog = results.get("blog", "")
         if blog:
-            wc = len(blog.split())
             st.markdown(f"""<div class="card">
-                <span class="technique-badge badge-green">{results.get('blog_technique', 'Role-Based')}</span>
-                <div class="card-title">📖 Blog Intro ({wc} words)</div>
+                <div class="card-title">📝 Blog Introduction</div>
                 <div class="card-content">{blog}</div>
             </div>""", unsafe_allow_html=True)
 
         social = results.get("social", {})
         if social:
-            # ── Card header ───────────────────────────────────────────────────
-            st.markdown(f"""<div class="card">
-                <span class="technique-badge badge-purple">{results.get('social_technique', 'Structured Output')}</span>
-                <div class="card-title">📱 Social Media Posts</div>
-            </div>""", unsafe_allow_html=True)
+            # ── Section heading — no card, no badge ───────────────────────────
+            st.markdown("### 📱 Social Media Posts")
 
             # ── Platform selector — three equal buttons ───────────────────────
             btn_col1, btn_col2, btn_col3 = st.columns(3, gap="small")
@@ -517,29 +511,23 @@ div[data-testid="column"] .stButton > button:hover {{
         image_url = results.get("image_url")
         if image_url:
             st.markdown(f"""<div class="card">
-                <span class="technique-badge badge-orange">{results.get('image_technique', 'Pollinations FLUX.1-dev')}</span>
-                <div class="card-title">🖼️ Campaign Hero Image (FLUX.1-dev)</div>
+                <div class="card-title">🎨 Campaign Hero Image</div>
             </div>""", unsafe_allow_html=True)
             st.image(image_url, use_container_width=True)
         else:
             st.markdown(f"""<div class="card">
-                <span class="technique-badge badge-orange">{results.get('image_technique', 'Pollinations FLUX.1-dev')}</span>
-                <div class="card-title">🖼️ Campaign Hero Image (FLUX.1-dev)</div>
+                <div class="card-title">🎨 Campaign Hero Image</div>
                 <div class="card-content" style="color:#6e7681;">Image generation failed. Check terminal logs for the exact error.</div>
             </div>""", unsafe_allow_html=True)
 
-        # Ken Burns video
+        # Promotional video
         video_path  = results.get("video_path")
         video_error = results.get("video_error")
 
         if video_path:
-            # Decide badge colour: teal if fully successful, orange if warning (silent fallback)
-            badge_cls = "badge-teal" if not video_error else "badge-orange"
             st.markdown(f"""<div class="card">
-                <span class="technique-badge {badge_cls}">{results.get('video_technique', 'Ken Burns + Edge TTS')}</span>
-                <div class="card-title">🎬 Promo Video (Ken Burns + Edge TTS)</div>
+                <div class="card-title">🎬 Promotional Video</div>
             </div>""", unsafe_allow_html=True)
-            # Warn if audio fell back
             if video_error:
                 escaped_warn = video_error.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 st.markdown(f'<div class="card-warn">⚠️ {escaped_warn}</div>', unsafe_allow_html=True)
@@ -550,7 +538,6 @@ div[data-testid="column"] .stButton > button:hover {{
                     f"<div class='card-content'>Video saved: <code>{video_path}</code></div>",
                     unsafe_allow_html=True,
                 )
-            # Download button
             try:
                 with open(video_path, "rb") as vf:
                     st.download_button(
@@ -566,7 +553,7 @@ div[data-testid="column"] .stButton > button:hover {{
             if video_error:
                 escaped = video_error.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 error_html = f'<div class="card-error"><strong>Error:</strong> {escaped}</div>'
-            st.markdown(f"""<div class="card"><span class="technique-badge badge-teal">{results.get('video_technique', 'Ken Burns + Edge TTS')}</span><div class="card-title">🎬 Promo Video (Ken Burns + Edge TTS)</div>{error_html}</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="card"><div class="card-title">🎬 Promotional Video</div>{error_html}</div>""", unsafe_allow_html=True)
 
 # ── Empty state ───────────────────────────────────────────────────────────────
 elif not st.session_state.generated and not st.session_state.running:
