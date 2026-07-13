@@ -32,6 +32,8 @@ if "results" not in st.session_state:
     st.session_state.results = {}
 if "running" not in st.session_state:
     st.session_state.running = False
+if "social_platform" not in st.session_state:
+    st.session_state.social_platform = None
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -273,6 +275,7 @@ if not HAS_OPENROUTER:
 def run_generation(product: str, audience: str, tone: str) -> None:
     st.session_state.running  = True
     st.session_state.generated = False
+    st.session_state.social_platform = None  # reset platform selector for new campaign
     results: dict = {}
 
     try:
@@ -381,24 +384,130 @@ if st.session_state.generated and st.session_state.results:
 
         social = results.get("social", {})
         if social:
+            # ── Card header ───────────────────────────────────────────────────
             st.markdown(f"""<div class="card">
                 <span class="technique-badge badge-purple">{results.get('social_technique', 'Structured Output')}</span>
                 <div class="card-title">📱 Social Media Posts</div>
             </div>""", unsafe_allow_html=True)
-            for platform, icon, limit in [
-                ("twitter",   "🐦 Twitter/X",  280),
-                ("instagram", "📸 Instagram",  2200),
-                ("linkedin",  "💼 LinkedIn",    700),
-            ]:
-                text = social.get(platform, "")
+
+            # ── Platform selector — three equal buttons ───────────────────────
+            btn_col1, btn_col2, btn_col3 = st.columns(3, gap="small")
+
+            platforms = [
+                ("twitter",   "🐦 Twitter (X)",  btn_col1),
+                ("instagram", "📸 Instagram",     btn_col2),
+                ("linkedin",  "💼 LinkedIn",      btn_col3),
+            ]
+
+            for key, label, col in platforms:
+                with col:
+                    if st.button(
+                        label,
+                        key=f"social_btn_{key}",
+                        use_container_width=True,
+                    ):
+                        st.session_state.social_platform = key
+                        st.rerun()
+
+            # ── Inline CSS: style the platform buttons ────────────────────────
+            active_key = st.session_state.social_platform
+
+            # Pass active key to JS so it can highlight the right button
+            active_label_map = {
+                "twitter":   "🐦 Twitter (X)",
+                "instagram": "📸 Instagram",
+                "linkedin":  "💼 LinkedIn",
+            }
+            active_label = active_label_map.get(active_key, "") if active_key else ""
+
+            st.markdown(f"""
+<style>
+/* Social platform buttons — base style */
+div[data-testid="column"] .stButton > button {{
+    background:    #21262d !important;
+    color:         #c9d1d9 !important;
+    border:        1px solid #30363d !important;
+    border-radius: 8px !important;
+    font-weight:   500 !important;
+    font-size:     0.88rem !important;
+    padding:       0.55rem 0.5rem !important;
+    transition:    background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+}}
+div[data-testid="column"] .stButton > button:hover {{
+    background:   #2d333b !important;
+    border-color: #58a6ff !important;
+    color:        #e6edf3 !important;
+}}
+</style>
+<script>
+(function highlightActiveSocialBtn() {{
+    var activeLabel = {repr(active_label)};
+    function applyHighlight() {{
+        var btns = document.querySelectorAll('div[data-testid="column"] .stButton > button');
+        btns.forEach(function(btn) {{
+            if (activeLabel && btn.innerText.trim() === activeLabel) {{
+                btn.style.background  = '#3b82f6';
+                btn.style.color       = '#ffffff';
+                btn.style.borderColor = '#3b82f6';
+                btn.style.fontWeight  = '600';
+            }} else {{
+                btn.style.background  = '#21262d';
+                btn.style.color       = '#c9d1d9';
+                btn.style.borderColor = '#30363d';
+                btn.style.fontWeight  = '500';
+            }}
+        }});
+    }}
+    applyHighlight();
+    setTimeout(applyHighlight, 300);
+    setTimeout(applyHighlight, 900);
+}})();
+</script>
+""", unsafe_allow_html=True)
+
+            # ── Content area ──────────────────────────────────────────────────
+            PLATFORM_META = {
+                "twitter":   ("🐦 Twitter / X",  280),
+                "instagram": ("📸 Instagram",    2200),
+                "linkedin":  ("💼 LinkedIn",      700),
+            }
+
+            if active_key is None:
+                # Nothing selected yet
+                st.markdown("""
+<div style="
+    background:#161b22;
+    border:1px solid #30363d;
+    border-radius:8px;
+    padding:1.1rem 1.25rem;
+    margin-top:0.75rem;
+    color:#8b949e;
+    font-size:0.9rem;
+    text-align:center;
+    font-style:italic;
+">
+    Select a platform to view the generated post.
+</div>
+""", unsafe_allow_html=True)
+            else:
+                text = social.get(active_key, "")
+                icon_label, char_limit = PLATFORM_META[active_key]
+                cc = len(text)
                 if text:
-                    cc = len(text)
-                    st.markdown(f"""<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.75rem;">
-                        <div style="font-size:0.7rem;font-weight:600;color:#6e7681;text-transform:uppercase;margin-bottom:0.25rem;">
-                            {icon} <span style="font-weight:400;text-transform:none;">({cc}/{limit} chars)</span>
-                        </div>
-                        <div style="color:#e6edf3;font-size:0.9rem;white-space:pre-line;">{text}</div>
-                    </div>""", unsafe_allow_html=True)
+                    st.markdown(f"""
+<div style="
+    background:#161b22;
+    border:1px solid #30363d;
+    border-radius:8px;
+    padding:0.85rem 1rem;
+    margin-top:0.75rem;
+">
+    <div style="font-size:0.7rem;font-weight:600;color:#6e7681;text-transform:uppercase;margin-bottom:0.5rem;">
+        {icon_label}&nbsp; <span style="font-weight:400;text-transform:none;color:#8b949e;">({cc}/{char_limit} chars)</span>
+    </div>
+    <div style="color:#e6edf3;font-size:0.9rem;white-space:pre-line;line-height:1.6;">{text}</div>
+</div>
+""", unsafe_allow_html=True)
 
     # ── Right: Visual assets ──────────────────────────────────────────────────
     with col2:
