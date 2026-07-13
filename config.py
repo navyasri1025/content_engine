@@ -4,7 +4,7 @@ Configuration module — loads API keys and model settings.
 Uses python-dotenv to load from .env file in the same directory.
 
 Providers:
-  - OpenRouter   : text generation (tagline, blog, social posts, video brief, audio)
+  - OpenRouter   : text generation (tagline, blog, social posts)
   - Pollinations : image generation — FLUX.1-dev (no API key required)
   - Local        : video generation — Ken Burns effect via imageio + Pillow + NumPy
   - Edge TTS     : audio narration — Microsoft Edge TTS (no API key required)
@@ -37,21 +37,16 @@ TEXT_MODEL = "openai/gpt-4.1-mini"
 # Pollinations AI — FLUX.1-dev (no key needed)
 IMAGE_PROVIDER = "pollinations"
 
-# OpenRouter model for video brief / audio script (text-only)
-VIDEO_BRIEF_MODEL = "openai/gpt-4.1-mini"
-
 # Edge TTS voice for narration (no API key required)
 # Full list: `edge-tts --list-voices`
 TTS_VOICE = "en-US-AriaNeural"
 
 # ── Availability flags ────────────────────────────────────────────────────────
 HAS_OPENROUTER = bool(OPENROUTER_API_KEY)
-HAS_VIDEO      = HAS_OPENROUTER
 
 # ── Log key status at startup ─────────────────────────────────────────────────
 logger.info("API key status:")
 logger.info("  OpenRouter (text)    : %s", "✓ configured" if HAS_OPENROUTER else "✗ missing — set OPENROUTER_API_KEY")
-logger.info("  OpenRouter (briefs)  : %s", "✓ configured" if HAS_VIDEO      else "✗ missing — set OPENROUTER_API_KEY")
 logger.info("  Pollinations (image) : ✓ no key required")
 logger.info("  Video (Ken Burns)    : ✓ fully local — no key required")
 logger.info("  Edge TTS (audio)     : ✓ no key required")

@@ -139,19 +139,39 @@ Exactly 200 words. Hook first sentence. Natural tagline integration. No markdown
                 f"the experience for {audience}, one innovation at a time.")
     return result
 # --- Prompt 3: Social Posts (Structured Output) ---
-SOCIAL_SYSTEM = """You are a social media marketing strategist. Create social posts.
+SOCIAL_SYSTEM = """You are a social media marketing strategist. Generate platform-specific posts.
 
-Generate posts for THREE platforms:
-- Twitter/X: Max 280 characters. Punchy, conversational.
-- Instagram: Max 2200 characters. Visual, storytelling. Include 3-5 hashtags.
-- LinkedIn: Max 700 characters. Professional, insightful, value-driven.
+Rules per platform:
+
+TWITTER/X:
+- 180-220 characters total (strict)
+- Start with a compelling hook
+- Highlight one clear key benefit
+- End with 2-3 relevant hashtags
+- Tone: punchy, conversational, direct
+
+INSTAGRAM:
+- Exactly 4-5 short lines (not paragraphs)
+- Line 1: engaging opening that stops the scroll
+- Lines 2-3: product benefits (concise, visual language)
+- Line 4: a clear call-to-action
+- End with 4-6 relevant hashtags on the last line
+- Tone: warm, inspiring, community-driven
+
+LINKEDIN:
+- One professional paragraph, 60-90 words (strict)
+- Open with the value proposition
+- Cover 2-3 key benefits naturally in the flow
+- Close with a call-to-action
+- End with 3-4 professional hashtags
+- Tone: insightful, authoritative, value-driven
 
 Return ONLY valid JSON. No markdown fences. No extra text.
 Schema:
 {
-  "twitter": "string (max 280 chars)",
-  "instagram": "string (max 2200 chars)",
-  "linkedin": "string (max 700 chars)"
+  "twitter": "string",
+  "instagram": "string",
+  "linkedin": "string"
 }"""
 
 
@@ -162,13 +182,8 @@ Product: {product}
 Audience: {audience}
 Tone: {tone}
 
-Platform limits:
-- Twitter: 280 chars max
-- Instagram: 2200 chars max
-- LinkedIn: 700 chars max
-
-Return ONLY valid JSON."""
-    result = _call_llm(SOCIAL_SYSTEM, user_prompt, 600)
+Follow every platform rule exactly. Return ONLY valid JSON."""
+    result = _call_llm(SOCIAL_SYSTEM, user_prompt, 700)
     if result is None:
         return _fallback(product, audience)
     cleaned = result.strip()
@@ -197,7 +212,22 @@ Return ONLY valid JSON."""
 def _fallback(product, audience):
     tag = product.replace(" ", "")
     return {
-        "twitter": f"Introducing {product} -- built for {audience}. #Innovation",
-        "instagram": f"Something new is here.\n\nMeet {product} -- for {audience}.\n\n#NewLaunch #{tag} #Innovation",
-        "linkedin": f"We're excited to introduce {product}, purpose-built for {audience}. #Innovation #{tag}",
+        "twitter": (
+            f"Tired of the same old solutions? Meet {product} — built for {audience}. "
+            f"Finally, something that actually works. #{tag} #Innovation #MustHave"
+        ),
+        "instagram": (
+            f"Your search ends here. ✨\n"
+            f"Introducing {product} — designed for {audience}.\n"
+            f"Built to perform, crafted to impress.\n"
+            f"Try it today and feel the difference. 👇\n"
+            f"#{tag} #NewLaunch #Innovation #MustHave"
+        ),
+        "linkedin": (
+            f"{product} is redefining what {audience} can expect. "
+            f"With a focus on quality, reliability, and results, it delivers real value "
+            f"where it matters most. Whether you're looking to save time, reduce friction, "
+            f"or simply raise the bar — this is built for you. "
+            f"Explore what's possible today. #{tag} #Innovation #ProductLaunch #Growth"
+        ),
     }

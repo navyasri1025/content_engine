@@ -9,10 +9,10 @@ import time
 
 import streamlit as st
 
-from config import HAS_OPENROUTER, HAS_VIDEO
+from config import HAS_OPENROUTER
 from text_gen import generate_tagline, generate_blog_intro, generate_social_posts
 from image_gen import generate_image
-from video_gen import generate_video, generate_video_brief, generate_audio_script
+from video_gen import generate_video
 
 # ── Logger ────────────────────────────────────────────────────────────────────
 logger = logging.getLogger("app")
@@ -315,40 +315,22 @@ def run_generation(product: str, audience: str, tone: str) -> None:
             else:
                 s.update(label="Image generation failed — see terminal", state="error", expanded=False)
 
-        # ── Step 5: Video brief + audio script + Ken Burns video ──────────────
-        with st.status("Step 5/5: Generating video brief, voiceover & Ken Burns video…", expanded=True) as s:
+        # ── Step 5: Ken Burns video ───────────────────────────────────────────
+        with st.status("Step 5/5: Generating Ken Burns video…", expanded=True) as s:
             time.sleep(0.2)
-            logger.info("=== Step 5/5: Video brief + audio script + Ken Burns video ===")
+            logger.info("=== Step 5/5: Ken Burns video ===")
 
-            # Generate text-based brief and voiceover script via OpenRouter
-            video_brief  = None
-            audio_script = None
-            if HAS_VIDEO:
-                video_brief  = generate_video_brief(product, tagline, tone, audience)
-                audio_script = generate_audio_script(product, tagline, tone)
-
-            # Extract voiceover text (used as narration for the video)
-            tts_script: str | None = None
-            if audio_script and isinstance(audio_script, dict):
-                tts_script = audio_script.get("script")
-
-            # Build the local Ken Burns video (always runs — no API key needed)
             video_path, video_error = generate_video(
                 product=product,
                 tagline=tagline,
                 tone=tone,
                 audience=audience,
                 image_url=image_url,
-                voiceover_script=tts_script,
             )
 
-            results["video_path"]            = video_path
-            results["video_error"]           = video_error
-            results["video_technique"]       = "Ken Burns (local) + Edge TTS"
-            results["video_brief"]           = video_brief
-            results["video_brief_technique"] = "OpenRouter Video Brief"
-            results["audio_script"]          = audio_script
-            results["audio_technique"]       = "OpenRouter Voiceover Script"
+            results["video_path"]      = video_path
+            results["video_error"]     = video_error
+            results["video_technique"] = "Ken Burns (local) + Edge TTS"
 
             if video_path:
                 s.update(label="Ken Burns video generated ✓", state="complete", expanded=False)
@@ -476,50 +458,6 @@ if st.session_state.generated and st.session_state.results:
                 escaped = video_error.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 error_html = f'<div class="card-error"><strong>Error:</strong> {escaped}</div>'
             st.markdown(f"""<div class="card"><span class="technique-badge badge-teal">{results.get('video_technique', 'Ken Burns + Edge TTS')}</span><div class="card-title">🎬 Promo Video (Ken Burns + Edge TTS)</div>{error_html}</div>""", unsafe_allow_html=True)
-
-        # Video creative brief
-        video_brief = results.get("video_brief")
-        if video_brief:
-            title = video_brief.get("title", "Promo Video Concept")
-            shots = video_brief.get("shots", [])
-            music = video_brief.get("music_direction", "")
-            cta   = video_brief.get("call_to_action", "")
-            st.markdown(f"""<div class="card">
-                <span class="technique-badge badge-blue">{results.get('video_brief_technique', 'OpenRouter Video Brief')}</span>
-                <div class="card-title">🎬 Video Creative Brief</div>
-                <div class="card-content"><strong>Title:</strong> {title}</div>
-                <div class="card-content" style="margin-top:0.5rem;"><strong>Shots:</strong></div>
-            </div>""", unsafe_allow_html=True)
-            for shot in shots[:4]:
-                sn   = shot.get("shot_number", "?")
-                desc = shot.get("description", "")
-                cam  = shot.get("camera", "")
-                dur  = shot.get("duration_seconds", "?")
-                st.markdown(f"""<div style="background:#1c2128;border:1px solid #30363d;border-radius:6px;padding:0.5rem 0.75rem;margin-bottom:0.5rem;">
-                    <div style="font-size:0.75rem;font-weight:600;color:#8b949e;">Shot {sn} ({dur}s)</div>
-                    <div style="color:#e6edf3;font-size:0.85rem;">{desc}</div>
-                    <div style="color:#6e7681;font-size:0.75rem;font-style:italic;">Camera: {cam}</div>
-                </div>""", unsafe_allow_html=True)
-            if music:
-                st.markdown(f'<div style="color:#c9d1d9;font-size:0.85rem;margin-bottom:0.25rem;"><strong>Music:</strong> {music}</div>', unsafe_allow_html=True)
-            if cta:
-                st.markdown(f'<div style="color:#c9d1d9;font-size:0.85rem;margin-bottom:0.5rem;"><strong>CTA:</strong> {cta}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f"""<div class="card"><span class="technique-badge badge-blue">{results.get('video_brief_technique', 'OpenRouter Video Brief')}</span><div class="card-title">🎬 Video Creative Brief</div><div class="card-content" style="color:#6e7681;">Not generated — set <code>OPENROUTER_API_KEY</code> in <code>.env</code>.</div></div>""", unsafe_allow_html=True)
-
-        # Audio voiceover script
-        audio_script = results.get("audio_script")
-        if audio_script:
-            script     = audio_script.get("script", "")
-            tone_guide = audio_script.get("tone_guide", "")
-            st.markdown(f"""<div class="card">
-                <span class="technique-badge badge-green">{results.get('audio_technique', 'OpenRouter Voiceover')}</span>
-                <div class="card-title">🎙️ Audio Voiceover Script</div>
-                <div class="card-content" style="font-style:italic;">"{script}"</div>
-                <div class="card-content" style="color:#6e7681;font-size:0.8rem;margin-top:0.25rem;">Tone: {tone_guide}</div>
-            </div>""", unsafe_allow_html=True)
-        else:
-            st.markdown(f"""<div class="card"><span class="technique-badge badge-green">{results.get('audio_technique', 'OpenRouter Voiceover')}</span><div class="card-title">🎙️ Audio Voiceover Script</div><div class="card-content" style="color:#6e7681;">Not generated — set <code>OPENROUTER_API_KEY</code> in <code>.env</code>.</div></div>""", unsafe_allow_html=True)
 
 # ── Empty state ───────────────────────────────────────────────────────────────
 elif not st.session_state.generated and not st.session_state.running:

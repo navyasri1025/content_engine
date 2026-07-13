@@ -1,5 +1,5 @@
 """
-Video & Audio generation module — fully local, zero API keys for video.
+Video generation module — fully local, zero API keys required.
 
 Pipeline
 --------
@@ -9,36 +9,25 @@ Pipeline
                       using Microsoft Edge TTS (edge-tts).  No API key needed.
 3. Mux              — combines the silent MP4 + MP3 into a final MP4 using
                       a bundled ffmpeg subprocess call.
-4. Video brief      — storyboard JSON via OpenRouter (text only).
-5. Audio script     — voiceover text via OpenRouter (text only).
 
-Dependencies (all pip-installable, no keys required for video/audio):
+Dependencies (all pip-installable, no keys required):
     pip install imageio[ffmpeg] Pillow numpy edge-tts
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import math
-import re
 import subprocess
-import tempfile
 import time
 from pathlib import Path
 
 import numpy as np
 import requests
-from openai import OpenAI
 from PIL import Image
 
-from config import (
-    HAS_VIDEO,
-    OPENROUTER_API_KEY,
-    TTS_VOICE,
-    VIDEO_BRIEF_MODEL,
-)
+from config import TTS_VOICE
 
 logger = logging.getLogger("video_gen")
 
@@ -343,143 +332,3 @@ def generate_video(
     size_kb = final_mp4.stat().st_size // 1024
     logger.info("[video_gen] === Done — %s (%d KB) ===", final_mp4.name, size_kb)
     return str(final_mp4), None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  OpenRouter client — shared for brief + audio script
-# ─────────────────────────────────────────────────────────────────────────────
-_client: OpenAI | None = None
-
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        logger.debug("[openrouter] Initialising client for video briefs")
-        _client = OpenAI(
-            api_key=OPENROUTER_API_KEY,
-            base_url="https://openrouter.ai/api/v1",
-            timeout=60,
-        )
-    return _client
-
-
-def _parse_json(raw: str) -> dict | None:
-    """Strip markdown fences and parse JSON; return None on failure."""
-    if raw.startswith("```"):
-        raw = "\n".join(
-            line for line in raw.split("\n")
-            if not line.strip().startswith("```")
-        ).strip()
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r"\{[\s\S]*\}", raw)
-        if m:
-            try:
-                return json.loads(m.group())
-            except json.JSONDecodeError:
-                pass
-    return None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  generate_video_brief — OpenRouter storyboard (text only)
-# ─────────────────────────────────────────────────────────────────────────────
-VIDEO_SYSTEM = """You are a senior video creative director. Craft a promo video concept.
-Return ONLY valid JSON with NO markdown fences:
-{
-  "title": "Video title",
-  "duration_seconds": 10,
-  "shots": [{"shot_number":1, "description":"...", "camera":"...", "duration_seconds":2}],
-  "music_direction": "...",
-  "voiceover_style": "...",
-  "call_to_action": "..."
-}"""
-
-
-def generate_video_brief(
-    product: str, tagline: str, tone: str, audience: str
-) -> dict | None:
-    """Generate video concept brief using OpenRouter (text-only)."""
-    if not HAS_VIDEO:
-        logger.warning("[openrouter] OPENROUTER_API_KEY not set — skipping video brief")
-        return None
-
-    logger.info("→ [OpenRouter] Requesting video creative brief | model=%s", VIDEO_BRIEF_MODEL)
-    try:
-        r = _get_client().chat.completions.create(
-            model=VIDEO_BRIEF_MODEL,
-            messages=[
-                {"role": "system", "content": VIDEO_SYSTEM},
-                {
-                    "role": "user",
-                    "content": (
-                        f"10-second promo for:\n"
-                        f"Product: {product}\nTagline: \"{tagline}\"\n"
-                        f"Audience: {audience}\nTone: {tone}\n"
-                        f"Return ONLY valid JSON, no markdown."
-                    ),
-                },
-            ],
-            max_tokens=800,
-            temperature=0.8,
-        )
-        raw = r.choices[0].message.content.strip()
-        logger.info("← [OpenRouter] Brief response (%d chars)", len(raw))
-        brief = _parse_json(raw)
-        if brief and "shots" in brief:
-            logger.info("← [OpenRouter] Brief parsed OK (%d shots)", len(brief.get("shots", [])))
-            return brief
-        logger.error("← [OpenRouter] Could not parse brief JSON: %s", raw[:200])
-        return None
-    except Exception as exc:
-        logger.error("← [OpenRouter] Brief request failed: %s", exc, exc_info=True)
-        return None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  generate_audio_script — OpenRouter voiceover text (text only)
-# ─────────────────────────────────────────────────────────────────────────────
-AUDIO_SYSTEM = """You are a voiceover scriptwriter. Write a punchy 15-second
-voiceover for a promo video. Return ONLY valid JSON with NO markdown fences:
-{
-  "script": "2-3 sentence script (max 40 words)",
-  "tone_guide": "How to deliver it",
-  "timing_seconds": 15
-}"""
-
-
-def generate_audio_script(product: str, tagline: str, tone: str) -> dict | None:
-    """Generate voiceover script via OpenRouter (text-only)."""
-    if not HAS_VIDEO:
-        logger.warning("[openrouter] OPENROUTER_API_KEY not set — skipping audio script")
-        return None
-
-    logger.info("→ [OpenRouter] Requesting audio script | model=%s", VIDEO_BRIEF_MODEL)
-    try:
-        r = _get_client().chat.completions.create(
-            model=VIDEO_BRIEF_MODEL,
-            messages=[
-                {"role": "system", "content": AUDIO_SYSTEM},
-                {
-                    "role": "user",
-                    "content": (
-                        f"Voiceover for:\n"
-                        f"Product: {product}\nTagline: \"{tagline}\"\n"
-                        f"Tone: {tone}\nReturn ONLY valid JSON, no markdown."
-                    ),
-                },
-            ],
-            max_tokens=300,
-            temperature=0.7,
-        )
-        raw = r.choices[0].message.content.strip()
-        logger.info("← [OpenRouter] Audio script response (%d chars)", len(raw))
-        result = _parse_json(raw)
-        if result:
-            return result
-        logger.error("← [OpenRouter] Could not parse audio script JSON: %s", raw[:200])
-        return None
-    except Exception as exc:
-        logger.error("← [OpenRouter] Audio script request failed: %s", exc, exc_info=True)
-        return None
